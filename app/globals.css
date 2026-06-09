@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { scroll-behavior: smooth; }
+body { @apply bg-gray-950 text-white; }
+
+.card { @apply bg-gray-900 border border-gray-800 rounded-2xl; }
+.btn-primary { @apply bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold px-6 py-3 rounded-xl transition-all active:scale-95; }
+.btn-secondary { @apply bg-gray-800 hover:bg-gray-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-all; }
+.progress-bar { @apply h-2 bg-gray-800 rounded-full overflow-hidden; }
+.progress-fill { @apply h-full bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full transition-all duration-500; }
