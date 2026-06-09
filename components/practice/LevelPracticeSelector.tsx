@@ -13,21 +13,18 @@ const copy = {
     eyebrow: "Practice Games",
     title: "Choose a level for games",
     description: "Vocabulary games are separated by course level so practice stays aligned with the syllabus.",
-    activeHref: "/games/a1",
-    activeLabel: "Open A1 games",
+    activeLabel: "Open games",
   },
   "mock-tests": {
     eyebrow: "Mock Tests",
     title: "Choose a level for mock tests",
     description: "Exam simulations are separated by level, so A1, A2, B1, and B2 can have different test formats and scoring.",
-    activeHref: "/mock-tests/a1",
-    activeLabel: "Open A1 mock tests",
+    activeLabel: "Open tests",
   },
 } satisfies Record<PracticeKind, {
   eyebrow: string;
   title: string;
   description: string;
-  activeHref: string;
   activeLabel: string;
 }>;
 
@@ -46,8 +43,12 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {courseLevels.map((level) => {
-          const enabled = level.id === "a1";
+          const enabled = level.id === "a1" || level.id === "a2";
           const preparing = level.status === "preparing";
+          const href =
+            kind === "mock-tests" && level.id === "a1"
+              ? "/mock-tests/a1"
+              : `/${kind}/${level.slug}`;
           const content = (
             <article
               className={cn(
@@ -80,14 +81,14 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
               <p className="mt-4 min-h-[72px] text-sm leading-relaxed text-gray-400">
                 {enabled
                   ? kind === "games"
-                    ? "Practice A1 vocabulary with flashcards, memory, and word matching."
-                    : "Take TELC A1 exam simulations with reading, listening, writing, and speaking sections."
+                    ? `Practice ${level.id.toUpperCase()} vocabulary with flashcards, memory, and word matching.`
+                    : `Take TELC ${level.id.toUpperCase()} exam simulations with reading, listening, writing, and speaking sections.`
                   : level.description}
               </p>
 
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">
-                  {enabled ? "A1 content" : preparing ? "Not enabled yet" : "Planned"}
+                  {enabled ? `${level.id.toUpperCase()} content` : preparing ? "Not enabled yet" : "Planned"}
                 </span>
                 <span
                   className={cn(
@@ -99,7 +100,7 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
                       : "border border-gray-800 text-gray-500"
                   )}
                 >
-                  {enabled ? page.activeLabel : preparing ? "Preparing" : "Soon"}
+                  {enabled ? `${page.activeLabel}` : preparing ? "Preparing" : "Soon"}
                 </span>
               </div>
             </article>
@@ -108,7 +109,7 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
           return (
             <Link
               key={level.id}
-              href={enabled ? page.activeHref : `/${kind}/${level.slug}`}
+              href={enabled ? href : `/${kind}/${level.slug}`}
               className="block"
             >
               {content}
@@ -120,8 +121,8 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
       <div className="card flex items-start gap-3 p-4 text-sm text-gray-400">
         <BookOpen size={18} className="mt-0.5 shrink-0 text-yellow-400" />
         <p>
-          A2, B1, and B2 practice areas are separated now, but disabled until their syllabus,
-          vocabulary pool, and test banks are complete.
+          A1 and A2 practice areas are active now. B1 and B2 stay separated and ready for
+          release after their syllabus, vocabulary pool, and test banks are complete.
         </p>
       </div>
     </div>

@@ -1,36 +1,28 @@
 # TELC Prep App
 
-A German exam-preparation web app focused on TELC-style learning, practice, and progress tracking.
+A German exam-preparation app for TELC-style learning, practice, mock tests, and progress tracking across web and mobile.
 
-The app currently provides a complete **German A1** learning experience with syllabus units, vocabulary practice, pronunciation practice, games, quizzes, mock tests, and progress tracking. Higher levels are structured separately so A2, B1, and B2 can be added without mixing content across levels.
+The product currently supports complete A1 learning, active A2 course/practice foundations, user accounts, and database-backed progress. B1 and B2 are kept as separate coming-soon tracks so future content does not mix with A1/A2.
 
-## Current Status
+## Available
 
-### Available
-
-- German A1 course dashboard
-- A1 syllabus and unit path
-- A1 lessons with vocabulary, grammar, dialogue, and reading content
-- A1 unit quizzes
-- A1 pronunciation practice
-- A1 games:
-  - flashcards
-  - memory game
-  - word match
-- A1 TELC-style mock tests
-- Progress page with XP, streak, quiz history, and lesson completion
+- Course dashboard with A1, A2, B1, and B2 level cards
+- German A1 syllabus, lessons, quizzes, pronunciation practice, games, mock tests, and progress tracking
+- German A2 syllabus with 10 units, 20 lessons, unit quizzes, A2 vocabulary games, and A2 mock tests
 - Level-separated routes for courses, games, and mock tests
+- Google login through NextAuth when Google OAuth credentials are configured
+- Email/password signup and login
+- Prisma-backed user accounts and progress storage
+- Guest/local progress fallback before login
+- Account page with logout and account deletion
+- Privacy and account deletion information pages
+- Capacitor setup for Android/iOS packaging
 
-### Planned
+## Coming Soon
 
-- A2 full course content
-- A2 games and mock tests
-- B1 and B2 courses
-- Google login
-- email/password login
-- database-backed user progress
-- account deletion and privacy pages
-- mobile app packaging for Play Store and App Store
+- Full B1 and B2 course content
+- Larger A2 test bank and deeper speaking evaluation
+- Native mobile store assets, signing, and final App Store / Play Store submissions
 
 ## Tech Stack
 
@@ -40,7 +32,9 @@ The app currently provides a complete **German A1** learning experience with syl
 - Tailwind CSS
 - Framer Motion
 - Lucide React icons
-- Local storage for current progress tracking
+- NextAuth
+- Prisma + SQLite for local development
+- Capacitor for mobile packaging
 
 ## Getting Started
 
@@ -48,6 +42,21 @@ Install dependencies:
 
 ```bash
 npm install
+```
+
+Create local environment values:
+
+```bash
+cp .env.example .env
+```
+
+For local development, `DATABASE_URL="file:./dev.db"` is enough. To enable Google login, add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+Generate Prisma client and initialize the local database:
+
+```bash
+npm run db:generate
+npm run db:init
 ```
 
 Run the development server:
@@ -68,57 +77,50 @@ http://localhost:3000
 npm run dev
 npm run build
 npm run start
+npm run db:generate
+npm run db:init
+npm run cap:sync
+npm run cap:android
+npm run cap:ios
 npx tsc --noEmit
 ```
-
-Note: `npm run lint` may ask to configure ESLint if the local Next.js lint setup has not been initialized yet.
 
 ## Main Routes
 
 ```text
-/                  Course dashboard
-/learn             German A1 syllabus
-/learn/[slug]      A1 unit detail
-/learn/[slug]/quiz A1 unit quiz
-/games             Games level selector
-/games/a1          A1 games
-/mock-tests        Mock test level selector
-/mock-tests/a1     A1 mock tests
-/mock-tests/[id]   A1 mock test runner
-/progress          Progress tracking
+/                         Course dashboard
+/learn                    A1 syllabus
+/learn/a2                 A2 syllabus
+/learn/a2/[unitSlug]      A2 unit detail
+/learn/a2/[unitSlug]/quiz A2 unit quiz
+/games                    Games level selector
+/games/a1                 A1 games
+/games/a2                 A2 games
+/mock-tests               Mock test level selector
+/mock-tests/a1            A1 mock tests
+/mock-tests/a2            A2 mock tests
+/mock-tests/a2/[id]       A2 mock test runner
+/progress                 Progress tracking
+/login                    Login and signup
+/account                  Account dashboard
+/privacy                  Privacy page
+/delete-account           Account deletion information
 ```
 
-## Product Structure
+## Mobile Packaging
 
-The app separates learning by level:
+Capacitor is configured with app id `com.telcprep.app` and app name `TELC Prep`.
 
-- A1: enabled
-- A2: preparing
-- B1: coming soon
-- B2: coming soon
+Because the app uses authentication and API routes, mobile builds should point to a deployed backend with `CAPACITOR_SERVER_URL` or use a production hosting strategy that preserves the Next.js server features.
 
-Games and mock tests are also separated by level, so future A2/B1/B2 practice can use different vocabulary pools, question banks, exam formats, and scoring rules.
-
-## Development Notes
-
-- Current progress is stored in browser `localStorage`.
-- The next major backend step is adding authentication and database-backed progress.
-- Pronunciation practice uses browser speech recognition, so accuracy depends on the browser and microphone.
-- The app is designed for web first, with a planned Capacitor-based mobile packaging path later.
+See `docs/mobile-store-checklist.md` for the Android/iOS publishing checklist.
 
 ## Verification
 
-Recent checks:
+Recommended checks before shipping changes:
 
-- TypeScript check passes with `npx tsc --noEmit`
-- Full local route sweep passed across course, lesson, quiz, games, mock test, and progress routes
-
-## Roadmap
-
-1. Add authentication with Google and email/password.
-2. Add database-backed progress per user.
-3. Add privacy policy and account deletion pages.
-4. Build complete A2 syllabus, lessons, games, and mock tests.
-5. Add B1/B2 course shells and later full content.
-6. Package the web app for Android/iOS with Capacitor.
-7. Prepare Play Store and App Store submission requirements.
+```bash
+npm run db:init
+npx tsc --noEmit
+npm run build
+```

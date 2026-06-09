@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, FileText, Gamepad2, Globe, Home, TrendingUp } from "lucide-react";
+import { BookOpen, FileText, Gamepad2, Globe, Home, LogIn, TrendingUp, User } from "lucide-react";
+import { SessionProvider, useSession } from "next-auth/react";
 import { LanguageProvider, useLang } from "@/contexts/LanguageContext";
 import { ProgressProvider } from "@/contexts/ProgressContext";
 import { t } from "@/data/translations";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 function Navbar() {
   const { lang, toggle } = useLang();
+  const { data: session } = useSession();
   const pathname = usePathname();
 
   const navLinks = [
@@ -58,6 +60,13 @@ function Navbar() {
           <Globe size={16} />
           {lang === "en" ? "DE" : "EN"}
         </button>
+        <Link
+          href={session ? "/account" : "/login"}
+          className="ml-2 flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+        >
+          {session ? <User size={16} /> : <LogIn size={16} />}
+          {session ? "Account" : "Login"}
+        </Link>
       </header>
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-gray-800 bg-gray-950/95 backdrop-blur md:hidden">
@@ -84,13 +93,15 @@ function Navbar() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <ProgressProvider>
-      <LanguageProvider>
-        <div className="min-h-screen bg-gray-950 text-white">
-          <Navbar />
-          <main className="min-h-screen pb-20 pt-0 md:pb-6 md:pt-16">{children}</main>
-        </div>
-      </LanguageProvider>
-    </ProgressProvider>
+    <SessionProvider>
+      <ProgressProvider>
+        <LanguageProvider>
+          <div className="min-h-screen bg-gray-950 text-white">
+            <Navbar />
+            <main className="min-h-screen pb-20 pt-0 md:pb-6 md:pt-16">{children}</main>
+          </div>
+        </LanguageProvider>
+      </ProgressProvider>
+    </SessionProvider>
   );
 }

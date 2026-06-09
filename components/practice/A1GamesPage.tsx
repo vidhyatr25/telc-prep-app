@@ -12,7 +12,17 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 type Game = "flashcards" | "memory" | "wordmatch" | null;
 
-export default function GamesPage() {
+type GamesPageProps = {
+  levelLabel?: string;
+  levelHref?: string;
+  getVocab?: () => VocabItem[];
+};
+
+export default function GamesPage({
+  levelLabel = "A1",
+  levelHref = "/games/a1",
+  getVocab = getAllVocab,
+}: GamesPageProps) {
   const { lang } = useLang();
   const [activeGame, setActiveGame] = useState<Game>(null);
 
@@ -48,7 +58,7 @@ export default function GamesPage() {
       <Breadcrumbs
         items={[
           { label: "Games", href: "/games" },
-          { label: "A1 Games" },
+          { label: `${levelLabel} Games`, href: levelHref },
         ]}
       />
 
@@ -58,8 +68,8 @@ export default function GamesPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        <h1 className="text-3xl font-extrabold text-white">A1 {t.gamesTitle[lang]}</h1>
-        <p className="text-gray-400">Practice A1 vocabulary with fun interactive games</p>
+        <h1 className="text-3xl font-extrabold text-white">{levelLabel} {t.gamesTitle[lang]}</h1>
+        <p className="text-gray-400">Practice {levelLabel} vocabulary with fun interactive games</p>
       </motion.div>
 
       {/* Game cards */}
@@ -98,17 +108,17 @@ export default function GamesPage() {
       <AnimatePresence>
         {activeGame === "flashcards" && (
           <GameModal onClose={() => setActiveGame(null)}>
-            <FlashcardsGame lang={lang} />
+            <FlashcardsGame lang={lang} getVocab={getVocab} />
           </GameModal>
         )}
         {activeGame === "memory" && (
           <GameModal onClose={() => setActiveGame(null)}>
-            <MemoryGame lang={lang} />
+            <MemoryGame lang={lang} getVocab={getVocab} />
           </GameModal>
         )}
         {activeGame === "wordmatch" && (
           <GameModal onClose={() => setActiveGame(null)}>
-            <WordMatchGame lang={lang} />
+            <WordMatchGame lang={lang} getVocab={getVocab} />
           </GameModal>
         )}
       </AnimatePresence>
@@ -150,7 +160,7 @@ function GameModal({
 }
 
 // ── Flashcards Game ──────────────────────────────────────────────────────────
-function FlashcardsGame({ lang }: { lang: Lang }) {
+function FlashcardsGame({ lang, getVocab }: { lang: Lang; getVocab: () => VocabItem[] }) {
   const { addXP } = useProgress();
   const [deck, setDeck] = useState<VocabItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -161,9 +171,9 @@ function FlashcardsGame({ lang }: { lang: Lang }) {
   const [sessionXP, setSessionXP] = useState(0);
 
   useEffect(() => {
-    const all = getAllVocab();
+    const all = getVocab();
     setDeck(shuffle(all).slice(0, 20));
-  }, []);
+  }, [getVocab]);
 
   const card = deck[index];
 
@@ -189,7 +199,7 @@ function FlashcardsGame({ lang }: { lang: Lang }) {
   };
 
   const restart = () => {
-    setDeck(shuffle(getAllVocab()).slice(0, 20));
+    setDeck(shuffle(getVocab()).slice(0, 20));
     setIndex(0);
     setFlipped(false);
     setKnown(0);
@@ -327,7 +337,7 @@ interface MemCard {
   matched: boolean;
 }
 
-function MemoryGame({ lang }: { lang: Lang }) {
+function MemoryGame({ lang, getVocab }: { lang: Lang; getVocab: () => VocabItem[] }) {
   const { addXP } = useProgress();
   const [cards, setCards] = useState<MemCard[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -338,7 +348,7 @@ function MemoryGame({ lang }: { lang: Lang }) {
   const [startTime, setStartTime] = useState<number>(Date.now());
 
   const initGame = useCallback(() => {
-    const all = getAllVocab();
+    const all = getVocab();
     const pairs = shuffle(all).slice(0, 8);
     const cardArr: MemCard[] = [];
     pairs.forEach((item, i) => {
@@ -352,7 +362,7 @@ function MemoryGame({ lang }: { lang: Lang }) {
     setSessionXP(0);
     setDone(false);
     setStartTime(Date.now());
-  }, []);
+  }, [getVocab]);
 
   useEffect(() => { initGame(); }, [initGame]);
 
@@ -460,7 +470,7 @@ interface WMPair {
   english: string;
 }
 
-function WordMatchGame({ lang }: { lang: Lang }) {
+function WordMatchGame({ lang, getVocab }: { lang: Lang; getVocab: () => VocabItem[] }) {
   const { addXP } = useProgress();
   const [pairs, setPairs] = useState<WMPair[]>([]);
   const [shuffledEn, setShuffledEn] = useState<string[]>([]);
@@ -472,7 +482,7 @@ function WordMatchGame({ lang }: { lang: Lang }) {
   const [done, setDone] = useState(false);
 
   const initGame = useCallback(() => {
-    const all = getAllVocab();
+    const all = getVocab();
     const selected = shuffle(all).slice(0, 6);
     const p = selected.map((v) => ({ german: v.german, english: v.english }));
     setPairs(p);
@@ -483,7 +493,7 @@ function WordMatchGame({ lang }: { lang: Lang }) {
     setWrong(null);
     setSessionXP(0);
     setDone(false);
-  }, []);
+  }, [getVocab]);
 
   useEffect(() => { initGame(); }, [initGame]);
 
