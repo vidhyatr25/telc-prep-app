@@ -2,34 +2,71 @@
 
 import Link from "next/link";
 import { BookOpen, CheckCircle, Clock, Lock } from "lucide-react";
+import { useLang } from "@/contexts/LanguageContext";
 import { courseLevels } from "@/data/curriculum";
+import type { Lang } from "@/data/translations";
 import { cn } from "@/lib/utils";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 type PracticeKind = "games" | "mock-tests";
 
 const copy = {
-  games: {
-    eyebrow: "Practice Games",
-    title: "Choose a level for games",
-    description: "Vocabulary games are separated by course level so practice stays aligned with the syllabus.",
-    activeLabel: "Open games",
+  en: {
+    games: {
+      eyebrow: "Practice Games",
+      title: "Choose a level for games",
+      description: "Vocabulary games are separated by course level so practice stays aligned with the syllabus.",
+      activeLabel: "Open games",
+      activeDescription: "Practice {level} vocabulary with flashcards, memory, and word matching.",
+    },
+    "mock-tests": {
+      eyebrow: "Mock Tests",
+      title: "Choose a level for mock tests",
+      description: "Exam simulations are separated by level, so A1, A2, B1, and B2 can have different test formats and scoring.",
+      activeLabel: "Open tests",
+      activeDescription: "Take TELC {level} exam simulations with reading, listening, writing, and speaking sections.",
+    },
+    available: "Available now",
+    preparingNow: "Preparing now",
+    comingSoon: "Coming soon",
+    content: "content",
+    notEnabled: "Not enabled yet",
+    planned: "Planned",
+    preparing: "Preparing",
+    soon: "Soon",
+    note: "A1 and A2 practice areas are active now. B1 and B2 stay separated and ready for release after their syllabus, vocabulary pool, and test banks are complete.",
   },
-  "mock-tests": {
-    eyebrow: "Mock Tests",
-    title: "Choose a level for mock tests",
-    description: "Exam simulations are separated by level, so A1, A2, B1, and B2 can have different test formats and scoring.",
-    activeLabel: "Open tests",
+  de: {
+    games: {
+      eyebrow: "Uebungsspiele",
+      title: "Waehle ein Level fuer Spiele",
+      description: "Vokabelspiele sind nach Kurslevel getrennt, damit die Uebung zum Lehrplan passt.",
+      activeLabel: "Spiele oeffnen",
+      activeDescription: "Uebe {level}-Vokabeln mit Lernkarten, Memory und Wortzuordnung.",
+    },
+    "mock-tests": {
+      eyebrow: "Probepruefungen",
+      title: "Waehle ein Level fuer Probepruefungen",
+      description: "Pruefungssimulationen sind nach Level getrennt, damit A1, A2, B1 und B2 eigene Formate haben.",
+      activeLabel: "Tests oeffnen",
+      activeDescription: "Mache TELC {level} Simulationen mit Lesen, Hoeren, Schreiben und Sprechen.",
+    },
+    available: "Jetzt verfuegbar",
+    preparingNow: "In Vorbereitung",
+    comingSoon: "Demnaechst",
+    content: "Inhalt",
+    notEnabled: "Noch nicht aktiv",
+    planned: "Geplant",
+    preparing: "In Vorbereitung",
+    soon: "Bald",
+    note: "A1 und A2 Uebungsbereiche sind jetzt aktiv. B1 und B2 bleiben getrennt und werden nach Lehrplan, Vokabelpool und Testbank freigegeben.",
   },
-} satisfies Record<PracticeKind, {
-  eyebrow: string;
-  title: string;
-  description: string;
-  activeLabel: string;
-}>;
+} satisfies Record<Lang, Record<string, any>>;
 
 export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
-  const page = copy[kind];
+  const { lang } = useLang();
+  const langCopy = copy[lang];
+  const page = langCopy[kind];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 space-y-5">
@@ -64,7 +101,7 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
                   </p>
                   <h2 className="mt-1 text-lg font-bold text-white">{level.title}</h2>
                   <p className="mt-1 text-xs font-semibold text-gray-500">
-                    {enabled ? "Available now" : preparing ? "Preparing now" : "Coming soon"}
+                    {enabled ? langCopy.available : preparing ? langCopy.preparingNow : langCopy.comingSoon}
                   </p>
                 </div>
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-gray-950">
@@ -81,14 +118,14 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
               <p className="mt-4 min-h-[72px] text-sm leading-relaxed text-gray-400">
                 {enabled
                   ? kind === "games"
-                    ? `Practice ${level.id.toUpperCase()} vocabulary with flashcards, memory, and word matching.`
-                    : `Take TELC ${level.id.toUpperCase()} exam simulations with reading, listening, writing, and speaking sections.`
+                    ? page.activeDescription.replace("{level}", level.id.toUpperCase())
+                    : page.activeDescription.replace("{level}", level.id.toUpperCase())
                   : level.description}
               </p>
 
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">
-                  {enabled ? `${level.id.toUpperCase()} content` : preparing ? "Not enabled yet" : "Planned"}
+                  {enabled ? `${level.id.toUpperCase()} ${langCopy.content}` : preparing ? langCopy.notEnabled : langCopy.planned}
                 </span>
                 <span
                   className={cn(
@@ -100,7 +137,7 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
                       : "border border-gray-800 text-gray-500"
                   )}
                 >
-                  {enabled ? `${page.activeLabel}` : preparing ? "Preparing" : "Soon"}
+                  {enabled ? `${page.activeLabel}` : preparing ? langCopy.preparing : langCopy.soon}
                 </span>
               </div>
             </article>
@@ -121,8 +158,7 @@ export function LevelPracticeSelector({ kind }: { kind: PracticeKind }) {
       <div className="card flex items-start gap-3 p-4 text-sm text-gray-400">
         <BookOpen size={18} className="mt-0.5 shrink-0 text-yellow-400" />
         <p>
-          A1 and A2 practice areas are active now. B1 and B2 stay separated and ready for
-          release after their syllabus, vocabulary pool, and test banks are complete.
+          {langCopy.note}
         </p>
       </div>
     </div>

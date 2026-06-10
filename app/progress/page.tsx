@@ -23,6 +23,51 @@ const levels: Level[] = [
   { label: "Intermediate", min: 3000, max: Infinity, color: "text-yellow-400" },
 ];
 
+const copy = {
+  en: {
+    subtitle: "Track your German A1 journey",
+    currentLevel: "Current Level",
+    maxLevel: "Max Level!",
+    xpTo: "XP to",
+    days: "days",
+    unitsDone: "Units Done",
+    lessonsDone: "Lessons Done",
+    testsTaken: "Tests Taken",
+    completed: "completed",
+    lessons: "lessons",
+    mockTests: "mock tests",
+    weeksAgo: "4 weeks ago",
+    today: "Today",
+    unitProgress: "Unit Progress",
+    mockHistory: "Mock Test History",
+    resetTitle: "Reset Progress?",
+    resetBody: "This will permanently delete all your XP, completed lessons, quiz scores, and mock test results. This action cannot be undone.",
+    cancel: "Cancel",
+    resetAll: "Reset All",
+  },
+  de: {
+    subtitle: "Verfolge deinen Deutsch A1 Fortschritt",
+    currentLevel: "Aktuelles Level",
+    maxLevel: "Maximales Level!",
+    xpTo: "XP bis",
+    days: "Tage",
+    unitsDone: "Einheiten",
+    lessonsDone: "Lektionen",
+    testsTaken: "Tests",
+    completed: "abgeschlossen",
+    lessons: "Lektionen",
+    mockTests: "Probepruefungen",
+    weeksAgo: "Vor 4 Wochen",
+    today: "Heute",
+    unitProgress: "Einheitenfortschritt",
+    mockHistory: "Probepruefungen Verlauf",
+    resetTitle: "Fortschritt zuruecksetzen?",
+    resetBody: "Dies loescht dauerhaft alle XP, abgeschlossenen Lektionen, Quiz-Ergebnisse und Probepruefungen. Diese Aktion kann nicht rueckgaengig gemacht werden.",
+    cancel: "Abbrechen",
+    resetAll: "Alles zuruecksetzen",
+  },
+};
+
 function getLevel(xp: number): Level & { progressPct: number; xpToNext: number } {
   const level = levels.find((l, i) => {
     const next = levels[i + 1];
@@ -42,6 +87,7 @@ export default function ProgressPage() {
   const { lang } = useLang();
   const { progress, resetProgress, getUnitProgress } = useProgress();
   const [showResetModal, setShowResetModal] = useState(false);
+  const c = copy[lang];
 
   const level = getLevel(progress.totalXP);
   const totalLessons = units.reduce((s, u) => s + u.lessons.length, 0);
@@ -60,7 +106,7 @@ export default function ProgressPage() {
         className="space-y-1"
       >
         <h1 className="text-3xl font-extrabold text-white">{t.progressTitle[lang]}</h1>
-        <p className="text-gray-400">Track your German A1 journey</p>
+        <p className="text-gray-400">{c.subtitle}</p>
       </motion.div>
 
       {/* Level card */}
@@ -72,7 +118,7 @@ export default function ProgressPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Current Level</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">{c.currentLevel}</p>
             <h2 className={cn("text-2xl font-extrabold", level.color)}>{level.label}</h2>
           </div>
           <div className="text-right">
@@ -88,9 +134,9 @@ export default function ProgressPage() {
           <div className="flex items-center justify-between text-xs text-gray-400">
             <span>{level.label}</span>
             {level.xpToNext > 0 ? (
-              <span>{level.xpToNext} XP to {levels[levels.indexOf(level) + 1]?.label}</span>
+              <span>{level.xpToNext} {c.xpTo} {levels[levels.indexOf(level) + 1]?.label}</span>
             ) : (
-              <span className="text-yellow-400">Max Level!</span>
+              <span className="text-yellow-400">{c.maxLevel}</span>
             )}
           </div>
           <div className="progress-bar h-3">
@@ -161,7 +207,7 @@ export default function ProgressPage() {
         <div className="flex items-center gap-2">
           <Flame size={18} className="text-orange-400" />
           <h3 className="font-bold text-white">{t.streak[lang]}</h3>
-          <span className="ml-auto text-orange-400 font-extrabold text-lg">{progress.streak} days</span>
+          <span className="ml-auto text-orange-400 font-extrabold text-lg">{progress.streak} {c.days}</span>
         </div>
         {/* Calendar dots — last 28 days */}
         <div className="grid grid-cols-7 gap-1.5">
@@ -185,8 +231,8 @@ export default function ProgressPage() {
           })}
         </div>
         <div className="flex justify-between text-xs text-gray-500">
-          <span>4 weeks ago</span>
-          <span>Today</span>
+          <span>{c.weeksAgo}</span>
+          <span>{c.today}</span>
         </div>
       </motion.div>
 
@@ -197,7 +243,7 @@ export default function ProgressPage() {
         transition={{ delay: 0.25 }}
         className="card p-5 space-y-4"
       >
-        <h3 className="font-bold text-white">Unit Progress</h3>
+        <h3 className="font-bold text-white">{c.unitProgress}</h3>
         <div className="space-y-3">
           {units.map((unit, i) => {
             const up = getUnitProgress(unit.id);
@@ -247,7 +293,7 @@ export default function ProgressPage() {
           transition={{ delay: 0.35 }}
           className="card p-5 space-y-4"
         >
-          <h3 className="font-bold text-white">Mock Test History</h3>
+          <h3 className="font-bold text-white">{c.mockHistory}</h3>
           <div className="space-y-2">
             {progress.mockTestResults.map((result) => (
               <div
@@ -329,7 +375,7 @@ export default function ProgressPage() {
                   <div className="w-10 h-10 rounded-xl bg-red-900/40 flex items-center justify-center">
                     <AlertTriangle size={20} className="text-red-400" />
                   </div>
-                  <h3 className="font-bold text-white text-lg">Reset Progress?</h3>
+                  <h3 className="font-bold text-white text-lg">{c.resetTitle}</h3>
                 </div>
                 <button
                   onClick={() => setShowResetModal(false)}
@@ -339,15 +385,14 @@ export default function ProgressPage() {
                 </button>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
-                This will permanently delete all your XP, completed lessons, quiz scores, and mock test
-                results. This action cannot be undone.
+                {c.resetBody}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowResetModal(false)}
                   className="btn-secondary flex-1"
                 >
-                  Cancel
+                  {c.cancel}
                 </button>
                 <button
                   onClick={() => {
@@ -356,7 +401,7 @@ export default function ProgressPage() {
                   }}
                   className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold transition-all"
                 >
-                  Reset All
+                  {c.resetAll}
                 </button>
               </div>
             </motion.div>

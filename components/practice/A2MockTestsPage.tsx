@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle, Clock, Target, Trophy, XCircle } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { useLang } from "@/contexts/LanguageContext";
 import { useProgress } from "@/contexts/ProgressContext";
 import { a2MockTests } from "@/data/a2-mock-tests";
 import { cn, formatTime } from "@/lib/utils";
@@ -14,28 +15,71 @@ const sectionColors: Record<string, string> = {
   speaking: "bg-orange-900/40 text-orange-300 border-orange-700/40",
 };
 
+const copy = {
+  en: {
+    root: "Mock Tests",
+    current: "A2 Mock Tests",
+    eyebrow: "TELC A2 Exam Practice",
+    title: "A2 Mock Tests",
+    description: "Practice A2 reading, listening, writing, and speaking with longer everyday tasks.",
+    syllabus: "A2 syllabus",
+    duration: "Duration",
+    passMark: "Pass mark",
+    points: "Points",
+    retake: "Retake A2 test",
+    start: "Start A2 test",
+    section: {
+      reading: "reading",
+      listening: "listening",
+      writing: "writing",
+      speaking: "speaking",
+    },
+  },
+  de: {
+    root: "Probepruefungen",
+    current: "A2 Probepruefungen",
+    eyebrow: "TELC A2 Pruefungstraining",
+    title: "A2 Probepruefungen",
+    description: "Uebe A2 Lesen, Hoeren, Schreiben und Sprechen mit laengeren Alltagsaufgaben.",
+    syllabus: "A2 Lehrplan",
+    duration: "Dauer",
+    passMark: "Bestehensgrenze",
+    points: "Punkte",
+    retake: "A2 Test wiederholen",
+    start: "A2 Test starten",
+    section: {
+      reading: "Lesen",
+      listening: "Hoeren",
+      writing: "Schreiben",
+      speaking: "Sprechen",
+    },
+  },
+};
+
 export default function A2MockTestsPage() {
+  const { lang } = useLang();
   const { progress } = useProgress();
+  const c = copy[lang];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 space-y-5">
       <Breadcrumbs
         items={[
-          { label: "Mock Tests", href: "/mock-tests" },
-          { label: "A2 Mock Tests" },
+          { label: c.root, href: "/mock-tests" },
+          { label: c.current },
         ]}
       />
 
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold text-blue-300">TELC A2 Exam Practice</p>
-          <h1 className="mt-1 text-3xl font-extrabold text-white">A2 Mock Tests</h1>
+          <p className="text-sm font-bold text-blue-300">{c.eyebrow}</p>
+          <h1 className="mt-1 text-3xl font-extrabold text-white">{c.title}</h1>
           <p className="mt-2 max-w-2xl text-sm text-gray-400">
-            Practice A2 reading, listening, writing, and speaking with longer everyday tasks.
+            {c.description}
           </p>
         </div>
         <Link href="/learn/a2" className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-gray-700 hover:text-white">
-          A2 syllabus
+          {c.syllabus}
         </Link>
       </div>
 
@@ -81,9 +125,9 @@ export default function A2MockTestsPage() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  <StatPill icon={<Clock size={14} />} label="Duration" value={formatTime(test.duration)} />
-                  <StatPill icon={<Target size={14} />} label="Pass mark" value={`${test.passMark}%`} />
-                  <StatPill icon={<Trophy size={14} />} label="Points" value={`${totalPoints}`} />
+                  <StatPill icon={<Clock size={14} />} label={c.duration} value={formatTime(test.duration)} />
+                  <StatPill icon={<Target size={14} />} label={c.passMark} value={`${test.passMark}%`} />
+                  <StatPill icon={<Trophy size={14} />} label={c.points} value={`${totalPoints}`} />
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -95,13 +139,13 @@ export default function A2MockTestsPage() {
                         sectionColors[section] ?? "border-gray-700 bg-gray-800 text-gray-300"
                       )}
                     >
-                      {section}
+                      {c.section[section as keyof typeof c.section] ?? section}
                     </span>
                   ))}
                 </div>
 
                 <div className="mt-4 flex items-center justify-between rounded-xl bg-blue-400 px-4 py-3 font-bold text-gray-950">
-                  <span>{result ? "Retake A2 test" : "Start A2 test"}</span>
+                  <span>{result ? c.retake : c.start}</span>
                   <ArrowRight size={16} />
                 </div>
               </article>

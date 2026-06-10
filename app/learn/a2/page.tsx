@@ -1,36 +1,66 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft, BookOpen, ChevronRight, Star } from "lucide-react";
+import { useLang } from "@/contexts/LanguageContext";
 import { a2Units } from "@/data/a2-curriculum";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { cn } from "@/lib/utils";
 
+const copy = {
+  en: {
+    breadcrumb: "German A2",
+    dashboard: "Course dashboard",
+    eyebrow: "TELC A2 Course",
+    title: "German A2 Syllabus",
+    description:
+      "Build beyond A1 with past tense, appointments, work, housing, health, travel, opinions, reading strategies, writing tasks, and A2 exam training.",
+    mockTests: "A2 mock tests",
+    path: "A2 syllabus path",
+    unit: "Unit",
+  },
+  de: {
+    breadcrumb: "Deutsch A2",
+    dashboard: "Kursuebersicht",
+    eyebrow: "TELC A2 Kurs",
+    title: "Deutsch A2 Lehrplan",
+    description:
+      "Baue auf A1 auf mit Perfekt, Terminen, Arbeit, Wohnen, Gesundheit, Reisen, Meinungen, Lesestrategien, Schreibaufgaben und A2 Pruefungstraining.",
+    mockTests: "A2 Probepruefungen",
+    path: "A2 Lehrpfad",
+    unit: "Einheit",
+  },
+};
+
 export default function A2CoursePage() {
+  const { lang } = useLang();
+  const c = copy[lang];
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-5 space-y-5">
-      <Breadcrumbs items={[{ label: "German A2" }]} />
+      <Breadcrumbs items={[{ label: c.breadcrumb }]} />
 
       <section className="card p-5">
         <Link href="/" className="inline-flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white">
           <ArrowLeft size={14} />
-          Course dashboard
+          {c.dashboard}
         </Link>
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-extrabold uppercase text-blue-300">TELC A2 Course</p>
-            <h1 className="mt-1 text-3xl font-extrabold text-white">German A2 Syllabus</h1>
+            <p className="text-sm font-extrabold uppercase text-blue-300">{c.eyebrow}</p>
+            <h1 className="mt-1 text-3xl font-extrabold text-white">{c.title}</h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-400">
-              Build beyond A1 with past tense, appointments, work, housing, health, travel,
-              opinions, reading strategies, writing tasks, and A2 exam training.
+              {c.description}
             </p>
           </div>
           <Link href="/mock-tests/a2" className="btn-primary inline-flex items-center gap-2">
-            A2 mock tests
+            {c.mockTests}
           </Link>
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-extrabold text-white">A2 syllabus path</h2>
+        <h2 className="text-xl font-extrabold text-white">{c.path}</h2>
         <div className="grid gap-3">
           {a2Units.map((unit) => (
             <Link key={unit.slug} href={`/learn/a2/${unit.slug}`} className="block">
@@ -40,7 +70,7 @@ export default function A2CoursePage() {
                     A2
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-gray-500">Unit {unit.id - 200}</p>
+                    <p className="text-xs font-semibold text-gray-500">{c.unit} {unit.id - 200}</p>
                     <h3 className="font-bold text-white">{unit.title}</h3>
                     <p className="mt-1 text-sm text-gray-400">{unit.description}</p>
                     <p className="mt-2 text-xs text-blue-300">{unit.examFocus}</p>

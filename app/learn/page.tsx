@@ -46,9 +46,55 @@ const examSkills = [
   },
 ];
 
+const pageCopy = {
+  en: {
+    breadcrumb: "German A1",
+    eyebrow: "TELC A1 Course",
+    title: "German A1 Syllabus",
+    description:
+      "Follow the complete A1 path from basic vocabulary and grammar to TELC-style speaking, reading, writing, listening, quizzes, and mock tests.",
+    ready: "Ready",
+    units: "Units",
+    path: "A1 syllabus path",
+    unlockHint: "Complete each unit quiz to unlock the next unit.",
+    mockTests: "Mock tests",
+    lessons: "lessons",
+    quizDone: "Quiz done",
+    completePrevious: "Complete unit {unit} quiz to unlock",
+    skills: {
+      Reading: { label: "Reading", detail: "notices, emails, forms" },
+      Listening: { label: "Listening", detail: "announcements, short talks" },
+      Writing: { label: "Writing", detail: "forms and short messages" },
+      Speaking: { label: "Speaking", detail: "intro and role-play" },
+    },
+  },
+  de: {
+    breadcrumb: "Deutsch A1",
+    eyebrow: "TELC A1 Kurs",
+    title: "Deutsch A1 Lehrplan",
+    description:
+      "Folge dem kompletten A1-Weg von Grundwortschatz und Grammatik bis zu TELC Sprechen, Lesen, Schreiben, Hoeren, Quizzen und Probepruefungen.",
+    ready: "Bereit",
+    units: "Einheiten",
+    path: "A1 Lehrpfad",
+    unlockHint: "Schliesse jedes Einheiten-Quiz ab, um die naechste Einheit freizuschalten.",
+    mockTests: "Probepruefungen",
+    lessons: "Lektionen",
+    quizDone: "Quiz erledigt",
+    completePrevious: "Schliesse Einheit {unit} ab, um freizuschalten",
+    skills: {
+      Reading: { label: "Lesen", detail: "Hinweise, E-Mails, Formulare" },
+      Listening: { label: "Hoeren", detail: "Durchsagen, kurze Texte" },
+      Writing: { label: "Schreiben", detail: "Formulare und kurze Nachrichten" },
+      Speaking: { label: "Sprechen", detail: "Vorstellung und Rollenspiel" },
+    },
+  },
+};
+
 export default function LearnPage() {
   const { lang } = useLang();
   const { isUnitUnlocked, getUnitProgress, progress } = useProgress();
+  const c = pageCopy[lang];
 
   const completedUnits = units.filter((unit) => getUnitProgress(unit.id).quizCompleted).length;
   const completedLessons = units.reduce(
@@ -60,7 +106,7 @@ export default function LearnPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-4 md:py-5 space-y-4">
-      <Breadcrumbs items={[{ label: "German A1" }]} />
+      <Breadcrumbs items={[{ label: c.breadcrumb }]} />
 
       <section className="card border-yellow-400/20 p-4 md:p-5">
         <motion.div
@@ -70,18 +116,17 @@ export default function LearnPage() {
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-extrabold uppercase text-yellow-400">TELC A1 Course</p>
+              <p className="text-xs font-extrabold uppercase text-yellow-400">{c.eyebrow}</p>
               <h1 className="mt-1 text-2xl font-extrabold text-white md:text-3xl">
-                German A1 Syllabus
+                {c.title}
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-400">
-                Follow the complete A1 path from basic vocabulary and grammar to TELC-style speaking,
-                reading, writing, listening, quizzes, and mock tests.
+                {c.description}
               </p>
             </div>
             <div className="grid grid-cols-3 gap-2 md:w-[360px]">
-              <CompactStat label="Ready" value={`${progressPct}%`} />
-              <CompactStat label="Units" value={`${completedUnits}/${units.length}`} />
+              <CompactStat label={c.ready} value={`${progressPct}%`} />
+              <CompactStat label={c.units} value={`${completedUnits}/${units.length}`} />
               <CompactStat label="XP" value={`${progress.totalXP}`} icon={<Star size={13} className="fill-current" />} />
             </div>
           </div>
@@ -97,8 +142,8 @@ export default function LearnPage() {
                   <skill.icon size={16} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-white">{skill.label}</p>
-                  <p className="truncate text-xs text-gray-500">{skill.detail}</p>
+                  <p className="text-sm font-bold text-white">{c.skills[skill.label as keyof typeof c.skills].label}</p>
+                  <p className="truncate text-xs text-gray-500">{c.skills[skill.label as keyof typeof c.skills].detail}</p>
                 </div>
               </div>
             ))}
@@ -109,12 +154,12 @@ export default function LearnPage() {
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-extrabold text-white">A1 syllabus path</h2>
-            <p className="text-xs text-gray-500">Complete each unit quiz to unlock the next unit.</p>
+            <h2 className="text-xl font-extrabold text-white">{c.path}</h2>
+            <p className="text-xs text-gray-500">{c.unlockHint}</p>
           </div>
           <Link href="/mock-tests/a1" className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-gray-700">
             <FileText size={17} />
-            Mock tests
+            {c.mockTests}
           </Link>
         </div>
 
@@ -167,6 +212,7 @@ export default function LearnPage() {
                           lessonsCount={lessonsCount}
                           quizDone={quizDone}
                           pct={pct}
+                          copy={c}
                         />
                       </Link>
                     ) : (
@@ -178,6 +224,7 @@ export default function LearnPage() {
                         lessonsCount={lessonsCount}
                         quizDone={quizDone}
                         pct={pct}
+                        copy={c}
                       />
                     )}
                   </div>
@@ -211,6 +258,7 @@ function UnitCard({
   lessonsCount,
   quizDone,
   pct,
+  copy,
 }: {
   unit: (typeof units)[number];
   lang: Lang;
@@ -219,6 +267,7 @@ function UnitCard({
   lessonsCount: number;
   quizDone: boolean;
   pct: number;
+  copy: typeof pageCopy.en;
 }) {
   return (
     <motion.div
@@ -263,12 +312,12 @@ function UnitCard({
           <div className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>
-                {doneCount}/{lessonsCount} {t.lesson[lang]}s
+                {doneCount}/{lessonsCount} {copy.lessons}
               </span>
               {quizDone && (
                 <span className="flex items-center gap-1 font-semibold text-yellow-400">
                   <CheckCircle size={12} />
-                  Quiz done
+                  {copy.quizDone}
                 </span>
               )}
             </div>
@@ -288,7 +337,7 @@ function UnitCard({
 
       {!unlocked && (
         <p className="mt-3 text-center text-xs text-gray-500">
-          Complete unit {unit.id - 1} quiz to unlock
+          {copy.completePrevious.replace("{unit}", String(unit.id - 1))}
         </p>
       )}
     </motion.div>
