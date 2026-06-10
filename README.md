@@ -1,6 +1,6 @@
-# TELC Prep App
+# DeutschLearn
 
-A German exam-preparation app for TELC-style learning, practice, mock tests, and progress tracking across web and mobile.
+DeutschLearn is a German exam-preparation app for TELC-style learning, practice, mock tests, and progress tracking across web and mobile.
 
 The product currently supports complete A1 learning, active A2 course/practice foundations, user accounts, and database-backed progress. B1 and B2 are kept as separate coming-soon tracks so future content does not mix with A1/A2.
 
@@ -111,7 +111,7 @@ npx tsc --noEmit
 
 ## Mobile Packaging
 
-Capacitor is configured with app id `com.telcprep.app` and app name `TELC Prep`.
+Capacitor is configured with app id `com.deutschlearn.app` and app name `DeutschLearn`.
 
 Because the app uses authentication and API routes, mobile builds should point to a deployed backend with `CAPACITOR_SERVER_URL` or use a production hosting strategy that preserves the Next.js server features.
 

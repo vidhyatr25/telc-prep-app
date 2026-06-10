@@ -29,7 +29,7 @@ function Navbar() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-400 text-sm font-extrabold text-gray-950">
             DE
           </span>
-          <span>Deutsch TELC</span>
+          <span>DeutschLearn</span>
         </Link>
 
         <nav className="flex flex-1 justify-center gap-1">
