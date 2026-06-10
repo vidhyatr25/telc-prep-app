@@ -33,7 +33,7 @@ The product currently supports complete A1 learning, active A2 course/practice f
 - Framer Motion
 - Lucide React icons
 - NextAuth
-- Prisma + SQLite for local development
+- Prisma + PostgreSQL
 - Capacitor for mobile packaging
 
 ## Getting Started
@@ -50,7 +50,9 @@ Create local environment values:
 cp .env.example .env
 ```
 
-For local development, `DATABASE_URL="file:./dev.db"` is enough. To enable Google login, add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+Use a PostgreSQL database such as Neon.
+
+Set `DATABASE_URL` to the pooled Neon connection string and `DIRECT_URL` to the direct Neon connection string. To enable Google login, add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
 Generate Prisma client and initialize the local database:
 
