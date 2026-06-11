@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ChevronRight, CheckCircle, Star, Volume2, Mic, Eye } from "lucide-react";
 import { useLang } from "@/contexts/LanguageContext";
@@ -27,11 +27,8 @@ function speak(text: string, langCode = "de-DE", slow = false) {
   window.speechSynthesis.speak(utt);
 }
 
-export default function LessonPage({
-  params,
-}: {
-  params: { slug: string; lessonId: string };
-}) {
+export default function LessonPage() {
+  const params = useParams<{ slug: string; lessonId: string }>();
   const { slug, lessonId } = params;
   const { lang } = useLang();
   const { completeLesson, isLessonDone } = useProgress();
@@ -326,28 +323,51 @@ function levenshteinDistance(a: string, b: string) {
 }
 
 function isPronunciationMatch(spoken: string, expected: string) {
+  return getPronunciationScore(spoken, expected) >= 0.68;
+}
+
+function getPronunciationScore(spoken: string, expected: string) {
   const said = normalizeSpeechText(spoken);
   const target = normalizeSpeechText(expected);
-  if (!said || !target) return false;
-  if (said === target || said.includes(target) || target.includes(said)) return true;
+  if (!said || !target) return 0;
+  if (said === target || said.includes(target) || target.includes(said)) return 1;
 
   const compactSaid = said.replace(/\s/g, "");
   const compactTarget = target.replace(/\s/g, "");
-  if (compactSaid === compactTarget) return true;
+  if (compactSaid === compactTarget) return 1;
 
   const distance = levenshteinDistance(compactSaid, compactTarget);
   const longest = Math.max(compactSaid.length, compactTarget.length);
-  const allowedDistance = longest <= 5 ? 1 : longest <= 10 ? 2 : 3;
+  if (longest === 0) return 0;
 
-  return distance <= allowedDistance || 1 - distance / longest >= 0.72;
+  return Math.max(0, 1 - distance / longest);
 }
+
+type SpeechAlternative = { transcript: string };
+type SpeechRecognitionResult = {
+  length: number;
+  [index: number]: SpeechAlternative;
+};
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: { results: { [index: number]: SpeechRecognitionResult } }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+};
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognitionLike;
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+};
 
 function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
   const [current, setCurrent] = useState(0);
   const [listening, setListening] = useState(false);
-  const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
+  const [feedback, setFeedback] = useState<"correct" | "close" | "wrong" | "error" | null>(null);
   const [heardTranscript, setHeardTranscript] = useState("");
-  const recognitionRef = useRef<any>(null);
+  const [pronunciationScore, setPronunciationScore] = useState<number | null>(null);
 
   const item = vocab[current];
   const hasSpeechRecognition =
@@ -356,7 +376,9 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
 
   const handleRecord = () => {
     if (!hasSpeechRecognition) return;
-    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SR = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!SR) return;
     const rec = new SR();
     rec.lang = "de-DE";
     rec.interimResults = false;
@@ -364,34 +386,23 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
     setListening(true);
     setFeedback(null);
     setHeardTranscript("");
+    setPronunciationScore(null);
 
-    rec.onresult = (e: any) => {
-      const normalize = (s: string) =>
-        s.toLowerCase().replace(/[^a-zäöüß\s]/g, "").trim();
-      const target = normalize(item.german);
-      let matched = false;
-      for (let r = 0; r < e.results[0].length; r++) {
-        const said = normalize(e.results[0][r].transcript);
-        if (said === target || said.includes(target) || target.includes(said)) {
-          matched = true;
-          break;
-        }
-      }
-      setFeedback(matched ? "correct" : "wrong");
-      setListening(false);
-    };
-    rec.onresult = (e: any) => {
+    rec.onresult = (e) => {
       const alternatives = Array.from(e.results[0] ?? [])
-        .map((result: any) => result.transcript as string)
+        .map((result) => result.transcript)
         .filter(Boolean);
-      const matched = alternatives.some((said) => isPronunciationMatch(said, item.german));
+      const bestScore = alternatives.reduce(
+        (best, said) => Math.max(best, getPronunciationScore(said, item.german)),
+        0
+      );
       setHeardTranscript(alternatives[0] ?? "");
-      setFeedback(matched ? "correct" : "wrong");
+      setPronunciationScore(Math.round(bestScore * 100));
+      setFeedback(bestScore >= 0.82 ? "correct" : bestScore >= 0.68 ? "close" : "wrong");
       setListening(false);
     };
-    rec.onerror = () => { setHeardTranscript(""); setFeedback("wrong"); setListening(false); };
+    rec.onerror = () => { setHeardTranscript(""); setPronunciationScore(null); setFeedback("error"); setListening(false); };
     rec.onend = () => setListening(false);
-    recognitionRef.current = rec;
     rec.start();
   };
 
@@ -399,6 +410,7 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
     setCurrent((c) => (c + dir + vocab.length) % vocab.length);
     setFeedback(null);
     setHeardTranscript("");
+    setPronunciationScore(null);
   };
 
   return (
@@ -474,10 +486,20 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
               "rounded-xl p-3 text-sm font-semibold text-center",
               feedback === "correct"
                 ? "bg-green-900/30 text-green-400 border border-green-700/30"
+                : feedback === "close"
+                ? "bg-yellow-900/30 text-yellow-300 border border-yellow-700/30"
+                : feedback === "error"
+                ? "bg-red-900/30 text-red-300 border border-red-700/30"
                 : "bg-orange-900/30 text-orange-400 border border-orange-700/30"
             )}
           >
-            {feedback === "correct" ? "✓ Great pronunciation!" : "Not quite — listen again and retry!"}
+            {feedback === "correct"
+              ? "Great pronunciation."
+              : feedback === "close"
+              ? "Close enough for A1. Listen once more and repeat."
+              : feedback === "error"
+              ? "Mic was blocked or no speech was captured. Allow microphone access and try again."
+              : "Not quite yet. Use Slow, then repeat the word in one clear breath."}
           </motion.div>
         )}
       </AnimatePresence>
@@ -485,6 +507,7 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
       {heardTranscript && (
         <p className="text-center text-xs font-medium text-gray-500">
           Heard: {heardTranscript}
+          {pronunciationScore !== null && ` - Match ${pronunciationScore}%`}
         </p>
       )}
 
@@ -497,7 +520,7 @@ function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
           {vocab.map((_, i) => (
             <button
               key={i}
-              onClick={() => { setCurrent(i); setFeedback(null); setHeardTranscript(""); }}
+              onClick={() => { setCurrent(i); setFeedback(null); setHeardTranscript(""); setPronunciationScore(null); }}
               className={cn("w-2 h-2 rounded-full transition-all", i === current ? "bg-yellow-400 scale-125" : "bg-gray-700 hover:bg-gray-500")}
             />
           ))}

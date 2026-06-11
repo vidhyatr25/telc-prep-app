@@ -10,8 +10,9 @@ const typeIcon = {
   reading: FileText,
 };
 
-export default function A2UnitPage({ params }: { params: { unitSlug: string } }) {
-  const unit = a2Units.find((item) => item.slug === params.unitSlug);
+export default async function A2UnitPage({ params }: { params: Promise<{ unitSlug: string }> }) {
+  const { unitSlug } = await params;
+  const unit = a2Units.find((item) => item.slug === unitSlug);
 
   if (!unit) {
     return (

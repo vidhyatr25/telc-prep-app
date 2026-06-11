@@ -18,6 +18,7 @@ import { units } from "@/data/curriculum";
 import { t, type Lang } from "@/data/translations";
 import { cn, percentage } from "@/lib/utils";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { A1ExamCoach } from "@/components/A1ExamCoach";
 
 const examSkills = [
   {
@@ -234,6 +235,8 @@ export default function LearnPage() {
           </div>
         </div>
       </section>
+
+      <A1ExamCoach />
     </div>
   );
 }

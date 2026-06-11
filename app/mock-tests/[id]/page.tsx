@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -74,12 +74,9 @@ function extractAudioScript(context: string): string {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function MockTestRunnerPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = params;
+export default function MockTestRunnerPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
   const { lang } = useLang();
   const { saveMockTestResult } = useProgress();
 

@@ -1,9 +1,10 @@
 import { UnavailablePracticePage } from "@/components/practice/UnavailablePracticePage";
 
-export default function GamesLevelUnavailableRoute({
+export default async function GamesLevelUnavailableRoute({
   params,
 }: {
-  params: { level: string };
+  params: Promise<{ level: string }>;
 }) {
-  return <UnavailablePracticePage levelSlug={params.level} kind="games" />;
+  const { level } = await params;
+  return <UnavailablePracticePage levelSlug={level} kind="games" />;
 }

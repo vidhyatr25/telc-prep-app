@@ -12,13 +12,14 @@ const lessonTypeCopy = {
   reading: { label: "Reading", icon: BookOpen, color: "text-green-300" },
 };
 
-export default function A2LessonPage({
+export default async function A2LessonPage({
   params,
 }: {
-  params: { unitSlug: string; lessonId: string };
+  params: Promise<{ unitSlug: string; lessonId: string }>;
 }) {
-  const unit = a2Units.find((item) => item.slug === params.unitSlug);
-  const lesson = unit?.lessons.find((item) => item.id === params.lessonId);
+  const { unitSlug, lessonId } = await params;
+  const unit = a2Units.find((item) => item.slug === unitSlug);
+  const lesson = unit?.lessons.find((item) => item.id === lessonId);
 
   if (!unit || !lesson) notFound();
 

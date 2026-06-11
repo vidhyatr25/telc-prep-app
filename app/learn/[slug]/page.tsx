@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -34,15 +34,11 @@ const lessonTypeColor: Record<string, string> = {
   reading: "text-orange-400 bg-orange-400/10",
 };
 
-export default function UnitDetailPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const { slug } = params;
+export default function UnitDetailPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const { lang } = useLang();
   const { isLessonDone, isUnitUnlocked, getUnitProgress } = useProgress();
-  const router = useRouter();
 
   const level = courseLevels.find((courseLevel) => courseLevel.slug === slug);
   if (level) {

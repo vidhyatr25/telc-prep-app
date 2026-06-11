@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -19,12 +19,9 @@ import { units } from "@/data/curriculum";
 import { t, type Lang } from "@/data/translations";
 import { cn, percentage } from "@/lib/utils";
 
-export default function QuizPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const { slug } = params;
+export default function QuizPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug;
   const { lang } = useLang();
   const { completeQuiz } = useProgress();
   const router = useRouter();
