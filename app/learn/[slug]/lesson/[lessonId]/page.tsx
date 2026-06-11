@@ -340,7 +340,19 @@ function getPronunciationScore(spoken: string, expected: string) {
   const longest = Math.max(compactSaid.length, compactTarget.length);
   if (longest === 0) return 0;
 
-  return Math.max(0, 1 - distance / longest);
+  const charScore = Math.max(0, 1 - distance / longest);
+  const saidTokens = new Set(said.split(" ").filter(Boolean));
+  const targetTokens = target.split(" ").filter(Boolean);
+  const matchedTokens = targetTokens.filter((token) => {
+    if (saidTokens.has(token)) return true;
+    return Array.from(saidTokens).some((saidToken) => {
+      const tokenDistance = levenshteinDistance(saidToken, token);
+      return 1 - tokenDistance / Math.max(saidToken.length, token.length) >= 0.72;
+    });
+  });
+  const wordScore = targetTokens.length ? matchedTokens.length / targetTokens.length : 0;
+
+  return Math.max(charScore, wordScore);
 }
 
 type SpeechAlternative = { transcript: string };
@@ -633,10 +645,26 @@ function DialogueContent({
   lang: string;
 }) {
   const [showHint, setShowHint] = useState<Set<number>>(new Set());
+  const [roleSpeaker, setRoleSpeaker] = useState(dialogue[0]?.speaker ?? "");
+  const [roleLineIndex, setRoleLineIndex] = useState(0);
+  const [roleListening, setRoleListening] = useState(false);
+  const [roleTranscript, setRoleTranscript] = useState("");
+  const [roleScore, setRoleScore] = useState<number | null>(null);
+  const [roleFeedback, setRoleFeedback] = useState<"good" | "close" | "try" | "error" | null>(null);
 
   const speakers = Array.from(new Set(dialogue.map((d) => d.speaker)));
   const speakerIndex: Record<string, number> = {};
   speakers.forEach((s, i) => { speakerIndex[s] = i; });
+  const roleTurns = dialogue
+    .map((line, index) => ({ line, index }))
+    .filter((turn) => turn.line.speaker === roleSpeaker);
+  const activeRoleTurn = roleTurns[Math.min(roleLineIndex, Math.max(roleTurns.length - 1, 0))];
+  const previousCue = activeRoleTurn
+    ? dialogue
+        .slice(0, activeRoleTurn.index)
+        .reverse()
+        .find((line) => line.speaker !== roleSpeaker)
+    : null;
 
   const bubbleColors = [
     "bg-blue-600/20 border-blue-600/30",
@@ -652,6 +680,53 @@ function DialogueContent({
       setTimeout(() => speak(line.line), delay);
       delay += line.line.split(" ").length * 500 + 600;
     });
+  };
+
+  const clearRoleResult = () => {
+    setRoleTranscript("");
+    setRoleScore(null);
+    setRoleFeedback(null);
+  };
+
+  const handleRoleRecord = () => {
+    if (!activeRoleTurn) return;
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SR = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!SR) {
+      setRoleFeedback("error");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "de-DE";
+    rec.interimResults = false;
+    rec.maxAlternatives = 5;
+    setRoleListening(true);
+    clearRoleResult();
+
+    rec.onresult = (event) => {
+      const alternatives = Array.from(event.results[0] ?? [])
+        .map((result) => result.transcript)
+        .filter(Boolean);
+      const bestScore = alternatives.reduce(
+        (best, said) => Math.max(best, getPronunciationScore(said, activeRoleTurn.line.line)),
+        0
+      );
+      setRoleTranscript(alternatives[0] ?? "");
+      setRoleScore(Math.round(bestScore * 100));
+      setRoleFeedback(bestScore >= 0.78 ? "good" : bestScore >= 0.55 ? "close" : "try");
+      setRoleListening(false);
+    };
+    rec.onerror = () => {
+      setRoleFeedback("error");
+      setRoleListening(false);
+    };
+    rec.onend = () => setRoleListening(false);
+    rec.start();
+  };
+
+  const nextRoleLine = () => {
+    setRoleLineIndex((current) => Math.min(current + 1, Math.max(roleTurns.length - 1, 0)));
+    clearRoleResult();
   };
 
   return (
@@ -702,7 +777,7 @@ function DialogueContent({
                       className="overflow-hidden"
                     >
                       <p className="text-yellow-300/70 text-xs mt-2 pt-2 border-t border-white/10 italic">
-                        Tip: tap the 🔊 to hear pronunciation. Look up words in your vocab lessons.
+                        Meaning: {line.english ?? "English meaning will be added soon."}
                       </p>
                     </motion.div>
                   )}
@@ -727,7 +802,7 @@ function DialogueContent({
                     })
                   }
                   className={cn("transition-colors", hintOn ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400")}
-                  title="Vocab hint"
+                  title="Show English meaning"
                 >
                   <Eye size={13} />
                 </button>
@@ -736,6 +811,129 @@ function DialogueContent({
           </motion.div>
         );
       })}
+
+      <div className="card border-green-400/20 p-4 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-extrabold uppercase text-green-300">Role-play speaking</p>
+            <h3 className="font-extrabold text-white">Choose your role and answer out loud</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Listen to the cue, say your line, then check the practice match.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {speakers.map((speaker) => (
+              <button
+                key={speaker}
+                onClick={() => {
+                  setRoleSpeaker(speaker);
+                  setRoleLineIndex(0);
+                  clearRoleResult();
+                }}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-bold transition-colors",
+                  roleSpeaker === speaker
+                    ? "border-green-400/30 bg-green-400/10 text-green-300"
+                    : "border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 hover:text-white"
+                )}
+              >
+                {speaker}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeRoleTurn && (
+          <div className="rounded-2xl border border-gray-800 bg-gray-950 p-4 space-y-3">
+            {previousCue && (
+              <div className="rounded-xl border border-blue-400/20 bg-blue-400/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-blue-300">Cue from {previousCue.speaker}</p>
+                    <p className="mt-1 text-sm text-white">{previousCue.line}</p>
+                    {previousCue.english && <p className="mt-1 text-xs text-gray-400">{previousCue.english}</p>}
+                  </div>
+                  <button
+                    onClick={() => speak(previousCue.line)}
+                    className="shrink-0 rounded-lg border border-blue-400/20 p-2 text-blue-300 hover:bg-blue-400/10"
+                    title="Play cue"
+                  >
+                    <Volume2 size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs font-bold uppercase text-yellow-400">
+                Your turn {roleLineIndex + 1}/{roleTurns.length} - {roleSpeaker}
+              </p>
+              <p className="mt-1 text-lg font-extrabold text-white">{activeRoleTurn.line.line}</p>
+              {activeRoleTurn.line.english && (
+                <p className="mt-1 text-sm text-gray-400">{activeRoleTurn.line.english}</p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => speak(activeRoleTurn.line.line, "de-DE", true)}
+                className="rounded-xl border border-blue-400/20 bg-blue-400/10 px-4 py-2 text-sm font-bold text-blue-300 hover:bg-blue-400/20"
+              >
+                Listen slow
+              </button>
+              <button
+                onClick={handleRoleRecord}
+                disabled={roleListening}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-colors disabled:opacity-70",
+                  roleListening
+                    ? "border border-red-400/30 bg-red-400/10 text-red-300"
+                    : "border border-green-400/30 bg-green-400/10 text-green-300 hover:bg-green-400/20"
+                )}
+              >
+                <Mic size={16} />
+                {roleListening ? "Listening..." : "Speak my line"}
+              </button>
+              <button
+                onClick={nextRoleLine}
+                disabled={roleLineIndex >= roleTurns.length - 1}
+                className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-2 text-sm font-bold text-gray-300 hover:border-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next line
+              </button>
+            </div>
+
+            {roleFeedback && (
+              <div
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-semibold",
+                  roleFeedback === "good"
+                    ? "border-green-400/30 bg-green-400/10 text-green-300"
+                    : roleFeedback === "close"
+                    ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+                    : roleFeedback === "error"
+                    ? "border-red-400/30 bg-red-400/10 text-red-300"
+                    : "border-orange-400/30 bg-orange-400/10 text-orange-300"
+                )}
+              >
+                {roleFeedback === "good"
+                  ? "Good speaking match."
+                  : roleFeedback === "close"
+                  ? "Close. Repeat once more with the slow audio."
+                  : roleFeedback === "error"
+                  ? "Mic was blocked or no speech was captured."
+                  : "Try again slowly. Focus on the main words first."}
+                {roleTranscript && (
+                  <span className="block pt-1 text-xs opacity-80">
+                    Heard: {roleTranscript}
+                    {roleScore !== null && ` - Practice match ${roleScore}%`}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
