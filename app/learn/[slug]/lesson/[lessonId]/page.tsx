@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,6 +27,24 @@ function speak(text: string, langCode = "de-DE", slow = false) {
   window.speechSynthesis.speak(utt);
 }
 
+function getSpeakingCheckpoint(lesson: Lesson) {
+  const vocabPhrase = lesson.vocab?.[0]?.german;
+  if (vocabPhrase) return vocabPhrase;
+
+  const dialoguePhrase = lesson.dialogue?.[0]?.line;
+  if (dialoguePhrase) return dialoguePhrase;
+
+  const grammarPhrase = lesson.grammar?.flatMap((rule) => rule.examples)[0]?.german;
+  if (grammarPhrase) return grammarPhrase;
+
+  const germanLikeSentence = lesson.content
+    .split(/[.!?]/)
+    .map((part) => part.trim())
+    .find((part) => /\b(ich|du|sie|Sie|wir|der|die|das|ein|eine|und|ist|bin|habe|kommen|wohnen)\b/i.test(part));
+
+  return germanLikeSentence || lesson.title;
+}
+
 export default function LessonPage() {
   const params = useParams<{ slug: string; lessonId: string }>();
   const { slug, lessonId } = params;
@@ -35,10 +53,17 @@ export default function LessonPage() {
   const router = useRouter();
   const [showXP, setShowXP] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [speakingPassed, setSpeakingPassed] = useState(false);
 
   const unit = units.find((u) => u.slug === slug);
   const lessonIndex = unit?.lessons.findIndex((l) => l.id === lessonId) ?? -1;
   const lesson = unit?.lessons[lessonIndex];
+
+  useEffect(() => {
+    setShowXP(false);
+    setCompleted(false);
+    setSpeakingPassed(false);
+  }, [slug, lessonId]);
 
   if (!unit || !lesson || lessonIndex === -1) {
     return (
@@ -53,8 +78,12 @@ export default function LessonPage() {
 
   const alreadyDone = isLessonDone(unit.id, lessonIndex);
   const nextLesson = unit.lessons[lessonIndex + 1];
+  const speakingCheckpoint = getSpeakingCheckpoint(lesson);
+  const needsSpeaking = Boolean(speakingCheckpoint) && !alreadyDone;
+  const canComplete = alreadyDone || !needsSpeaking || speakingPassed;
 
   const handleComplete = () => {
+    if (!canComplete) return;
     if (!alreadyDone) {
       completeLesson(unit.id, lessonIndex, lesson.xp);
     }
@@ -160,15 +189,27 @@ export default function LessonPage() {
         transition={{ delay: 0.3 }}
         className="space-y-3"
       >
+        {!alreadyDone && speakingCheckpoint && (
+          <CompletionSpeakingCheckpoint
+            phrase={speakingCheckpoint}
+            passed={speakingPassed}
+            onPassed={() => setSpeakingPassed(true)}
+          />
+        )}
+
         {!completed ? (
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
             onClick={handleComplete}
-            className="btn-primary w-full text-base flex items-center justify-center gap-2"
+            disabled={!canComplete}
+            className={cn(
+              "btn-primary w-full text-base flex items-center justify-center gap-2",
+              !canComplete && "cursor-not-allowed opacity-50 hover:scale-100"
+            )}
           >
             <CheckCircle size={18} />
-            {alreadyDone ? "Already Completed — Continue" : "Mark Complete & Continue"}
+            {alreadyDone ? "Already Completed — Continue" : canComplete ? "Mark Complete & Continue" : "Speak checkpoint to complete"}
             {!alreadyDone && <span className="ml-1 opacity-75">+{lesson.xp} XP</span>}
           </motion.button>
         ) : (
@@ -650,6 +691,150 @@ type SpeechRecognitionWindow = Window & {
   SpeechRecognition?: new () => SpeechRecognitionLike;
   webkitSpeechRecognition?: new () => SpeechRecognitionLike;
 };
+
+function CompletionSpeakingCheckpoint({
+  phrase,
+  passed,
+  onPassed,
+}: {
+  phrase: string;
+  passed: boolean;
+  onPassed: () => void;
+}) {
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [score, setScore] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<"pass" | "close" | "try" | "error" | null>(passed ? "pass" : null);
+  const hasSpeechRecognition =
+    typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const startCheckpoint = () => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SR = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!SR) {
+      setFeedback("error");
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = "de-DE";
+    rec.interimResults = false;
+    rec.maxAlternatives = 5;
+    setListening(true);
+    setTranscript("");
+    setScore(null);
+    setFeedback(null);
+
+    rec.onresult = (event) => {
+      const alternatives = Array.from(event.results[0] ?? [])
+        .map((result) => result.transcript)
+        .filter(Boolean);
+      const bestScore = alternatives.reduce(
+        (best, said) => Math.max(best, getPronunciationScore(said, phrase)),
+        0
+      );
+      const percent = Math.round(bestScore * 100);
+      setTranscript(alternatives[0] ?? "");
+      setScore(percent);
+      setListening(false);
+
+      if (bestScore >= 0.55) {
+        setFeedback(bestScore >= 0.78 ? "pass" : "close");
+        onPassed();
+      } else {
+        setFeedback("try");
+      }
+    };
+    rec.onerror = () => {
+      setListening(false);
+      setFeedback("error");
+    };
+    rec.onend = () => setListening(false);
+    rec.start();
+  };
+
+  return (
+    <section
+      className={cn(
+        "rounded-2xl border p-4",
+        passed ? "border-green-400/30 bg-green-400/10" : "border-yellow-400/25 bg-yellow-400/10"
+      )}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className={cn("text-xs font-extrabold uppercase", passed ? "text-green-300" : "text-yellow-300")}>
+            Required speaking checkpoint
+          </p>
+          <p className="mt-1 text-sm text-gray-300">
+            Speak this once to unlock lesson completion.
+          </p>
+          <p className="mt-2 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-base font-extrabold text-white">
+            {phrase}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            onClick={() => speak(phrase, "de-DE", true)}
+            className="rounded-xl border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-sm font-bold text-blue-300 hover:bg-blue-400/20"
+          >
+            Listen slow
+          </button>
+          <button
+            onClick={startCheckpoint}
+            disabled={listening || passed || !hasSpeechRecognition}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+              passed
+                ? "border border-green-400/30 bg-green-400/10 text-green-300"
+                : listening
+                ? "border border-red-400/30 bg-red-400/10 text-red-300"
+                : "border border-yellow-400/30 bg-gray-950 text-yellow-300 hover:bg-yellow-400/10"
+            )}
+          >
+            <Mic size={16} />
+            {passed ? "Speaking done" : listening ? "Listening..." : "Speak now"}
+          </button>
+        </div>
+      </div>
+
+      {!hasSpeechRecognition && (
+        <p className="mt-3 text-xs font-semibold text-red-300">
+          Speech completion works best in Chrome or Edge. Please use one of those browsers for speaking lessons.
+        </p>
+      )}
+
+      {feedback && (
+        <div
+          className={cn(
+            "mt-3 rounded-xl border px-3 py-2 text-sm font-semibold",
+            feedback === "pass"
+              ? "border-green-400/30 bg-green-400/10 text-green-300"
+              : feedback === "close"
+              ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+              : feedback === "error"
+              ? "border-red-400/30 bg-red-400/10 text-red-300"
+              : "border-orange-400/30 bg-orange-400/10 text-orange-300"
+          )}
+        >
+          {feedback === "pass"
+            ? "Good. Lesson completion is unlocked."
+            : feedback === "close"
+            ? "Close enough for this lesson. Completion is unlocked."
+            : feedback === "error"
+            ? "Mic was blocked or no speech was captured."
+            : "Try again slowly. Listen once, then repeat clearly."}
+          {transcript && (
+            <span className="block pt-1 text-xs opacity-80">
+              Heard: {transcript}
+              {score !== null && ` - Match ${score}%`}
+            </span>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function PronunciationPractice({ vocab }: { vocab: VocabItem[] }) {
   const [current, setCurrent] = useState(0);
