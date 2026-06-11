@@ -21,7 +21,7 @@ export default function DeleteAccountPage() {
           <li>Login to your account.</li>
           <li>Open the Account page.</li>
           <li>Select Delete account.</li>
-          <li>Confirm the deletion prompt.</li>
+          <li>Type DELETE MY ACCOUNT in the confirmation prompt.</li>
         </ol>
 
         <div className="flex flex-col gap-3 sm:flex-row">

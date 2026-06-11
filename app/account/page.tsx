@@ -14,7 +14,7 @@ const copy = {
     required: "Login required",
     requiredDescription: "Create an account to save progress across devices.",
     login: "Login",
-    confirmDelete: "Delete your account and all saved progress? This cannot be undone.",
+    confirmDelete: "Type DELETE MY ACCOUNT to permanently delete your account and all saved progress.",
     deleteError: "Could not delete account. Please try again.",
     eyebrow: "Account",
     title: "Your TELC account",
@@ -35,7 +35,7 @@ const copy = {
     required: "Login erforderlich",
     requiredDescription: "Erstelle ein Konto, um deinen Fortschritt auf allen Geraeten zu speichern.",
     login: "Einloggen",
-    confirmDelete: "Konto und gespeicherten Fortschritt loeschen? Das kann nicht rueckgaengig gemacht werden.",
+    confirmDelete: "Tippe DELETE MY ACCOUNT ein, um dein Konto und deinen gespeicherten Fortschritt dauerhaft zu loeschen.",
     deleteError: "Konto konnte nicht geloescht werden. Bitte erneut versuchen.",
     eyebrow: "Konto",
     title: "Dein TELC Konto",
@@ -79,12 +79,16 @@ export default function AccountPage() {
   }
 
   const deleteAccount = async () => {
-    const confirmed = window.confirm(c.confirmDelete);
-    if (!confirmed) return;
+    const confirmation = window.prompt(c.confirmDelete);
+    if (confirmation !== "DELETE MY ACCOUNT") return;
 
     setDeleting(true);
     setError("");
-    const response = await fetch("/api/account", { method: "DELETE" });
+    const response = await fetch("/api/account", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirmation }),
+    });
     if (!response.ok) {
       setError(c.deleteError);
       setDeleting(false);

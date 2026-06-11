@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, normalizeEmail } from "@/lib/security";
 
 const providers: NextAuthOptions["providers"] = [
   CredentialsProvider({
@@ -13,9 +14,12 @@ const providers: NextAuthOptions["providers"] = [
       password: { label: "Password", type: "password" },
     },
     async authorize(credentials) {
-      const email = credentials?.email?.trim().toLowerCase();
-      const password = credentials?.password;
-      if (!email || !password) return null;
+      const email = normalizeEmail(credentials?.email);
+      const password = String(credentials?.password ?? "");
+      if (!email || password.length < 8 || password.length > 128) return null;
+
+      const rateLimit = checkRateLimit(`signin:email:${email}`, 20, 15 * 60 * 1000);
+      if (!rateLimit.ok) return null;
 
       const user = await prisma.user.findUnique({ where: { email } });
       if (!user?.passwordHash) return null;
