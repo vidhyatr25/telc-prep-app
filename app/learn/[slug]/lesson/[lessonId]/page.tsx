@@ -197,9 +197,23 @@ export default function LessonPage() {
 }
 
 // ── Vocab grid ────────────────────────────────────────────────────────────────
+type VocabPracticeMode = "learn" | "recall" | "speak";
+
+function getVocabOptions(vocab: VocabItem[], active: number) {
+  const indexes = [active];
+  let offset = 1;
+  while (indexes.length < Math.min(4, vocab.length) && offset < vocab.length + 4) {
+    const next = (active + offset * 2 + 1) % vocab.length;
+    if (!indexes.includes(next)) indexes.push(next);
+    offset += 1;
+  }
+  return indexes.map((index) => vocab[index].german).sort((a, b) => a.localeCompare(b));
+}
+
 function VocabContent({ vocab, lang }: { vocab: VocabItem[]; lang: string }) {
   const [flipped, setFlipped] = useState<Set<number>>(new Set());
-  const [showPractice, setShowPractice] = useState(false);
+  const [active, setActive] = useState(0);
+  const [mode, setMode] = useState<VocabPracticeMode>("learn");
 
   const toggleFlip = (i: number) => {
     setFlipped((prev) => {
@@ -212,6 +226,15 @@ function VocabContent({ vocab, lang }: { vocab: VocabItem[]; lang: string }) {
 
   return (
     <div className="space-y-4">
+      <VocabCoach
+        vocab={vocab}
+        active={active}
+        lang={lang}
+        mode={mode}
+        setActive={setActive}
+        setMode={setMode}
+      />
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {vocab.map((item, i) => {
           const isFlipped = flipped.has(i);
@@ -220,8 +243,14 @@ function VocabContent({ vocab, lang }: { vocab: VocabItem[]; lang: string }) {
               key={i}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => toggleFlip(i)}
-              className="card p-4 cursor-pointer select-none min-h-[110px] flex flex-col items-center justify-center gap-1.5 text-center hover:border-gray-600 transition-all relative group"
+              onClick={() => {
+                setActive(i);
+                toggleFlip(i);
+              }}
+              className={cn(
+                "card p-4 cursor-pointer select-none min-h-[110px] flex flex-col items-center justify-center gap-1.5 text-center hover:border-gray-600 transition-all relative group",
+                active === i && "border-yellow-400/40 bg-yellow-400/5"
+              )}
             >
               {/* Speak button — top-right, click without flipping */}
               <button
@@ -265,32 +294,280 @@ function VocabContent({ vocab, lang }: { vocab: VocabItem[]; lang: string }) {
         })}
       </div>
 
-      {/* Pronunciation practice toggle */}
-      <button
-        onClick={() => setShowPractice(!showPractice)}
-        className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-gray-400 hover:text-yellow-400 border border-dashed border-gray-700 hover:border-yellow-400/40 rounded-xl transition-all"
-      >
-        <Volume2 size={15} />
-        {showPractice ? "Hide Pronunciation Practice" : "🎤 Practice Pronunciation"}
-      </button>
-
-      <AnimatePresence>
-        {showPractice && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <PronunciationPractice vocab={vocab} />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
 // ── Pronunciation Practice ────────────────────────────────────────────────────
+function VocabCoach({
+  vocab,
+  active,
+  lang,
+  mode,
+  setActive,
+  setMode,
+}: {
+  vocab: VocabItem[];
+  active: number;
+  lang: string;
+  mode: VocabPracticeMode;
+  setActive: (index: number) => void;
+  setMode: (mode: VocabPracticeMode) => void;
+}) {
+  const item = vocab[active];
+  const [meaningFor, setMeaningFor] = useState<number | null>(null);
+  const [choice, setChoice] = useState<{ active: number; answer: string } | null>(null);
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [score, setScore] = useState<number | null>(null);
+  const [speakFeedback, setSpeakFeedback] = useState<"good" | "close" | "try" | "error" | null>(null);
+  const showMeaning = meaningFor === active;
+  const selected = choice?.active === active ? choice.answer : null;
+  const options = getVocabOptions(vocab, active);
+  const hasSpeechRecognition =
+    typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  const resetSpeak = () => {
+    setTranscript("");
+    setScore(null);
+    setSpeakFeedback(null);
+  };
+
+  const go = (direction: number) => {
+    const next = (active + direction + vocab.length) % vocab.length;
+    setActive(next);
+    setMeaningFor(null);
+    setChoice(null);
+    resetSpeak();
+  };
+
+  const startSpeaking = () => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SR = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+    if (!SR) {
+      setSpeakFeedback("error");
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = "de-DE";
+    rec.interimResults = false;
+    rec.maxAlternatives = 5;
+    setListening(true);
+    resetSpeak();
+
+    rec.onresult = (event) => {
+      const alternatives = Array.from(event.results[0] ?? [])
+        .map((result) => result.transcript)
+        .filter(Boolean);
+      const bestScore = alternatives.reduce(
+        (best, said) => Math.max(best, getPronunciationScore(said, item.german)),
+        0
+      );
+      setTranscript(alternatives[0] ?? "");
+      setScore(Math.round(bestScore * 100));
+      setSpeakFeedback(bestScore >= 0.78 ? "good" : bestScore >= 0.55 ? "close" : "try");
+      setListening(false);
+    };
+    rec.onerror = () => {
+      setSpeakFeedback("error");
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+    rec.start();
+  };
+
+  return (
+    <section className="card overflow-hidden border-yellow-400/20">
+      <div className="border-b border-gray-800 bg-gray-950/60 p-3">
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: "learn" as const, label: "Learn" },
+            { id: "recall" as const, label: "Recall" },
+            { id: "speak" as const, label: "Speak" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setMode(tab.id);
+                setChoice(null);
+                resetSpeak();
+              }}
+              className={cn(
+                "rounded-xl border px-3 py-2 text-sm font-bold transition-colors",
+                mode === tab.id
+                  ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+                  : "border-gray-800 bg-gray-900 text-gray-400 hover:border-gray-700 hover:text-white"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 md:p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase text-yellow-400">
+              {lang === "de" ? "Deutsch" : "German"} phrase {active + 1}/{vocab.length}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {item.article && (
+                <span className={cn("rounded-md px-2 py-1 text-xs font-bold", articleColors[item.article] ?? "bg-gray-700 text-gray-300")}>
+                  {item.article}
+                </span>
+              )}
+              <h3 className="text-2xl font-extrabold text-white">{item.german}</h3>
+            </div>
+            {(showMeaning || mode !== "learn") && (
+              <p className="mt-2 text-base font-semibold text-yellow-300">{item.english}</p>
+            )}
+            {item.example && (
+              <p className="mt-3 rounded-xl border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-gray-300">
+                {item.example}
+              </p>
+            )}
+          </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              onClick={() => speak(item.german, "de-DE", true)}
+              className="rounded-xl border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-sm font-bold text-blue-300 hover:bg-blue-400/20"
+            >
+              Slow
+            </button>
+            <button
+              onClick={() => speak(item.german)}
+              className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2 text-sm font-bold text-gray-300 hover:border-gray-600"
+            >
+              Normal
+            </button>
+            <button
+              onClick={() => setMeaningFor(showMeaning ? null : active)}
+              className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 px-3 py-2 text-sm font-bold text-yellow-300 hover:bg-yellow-400/20"
+            >
+              Meaning
+            </button>
+          </div>
+        </div>
+
+        {mode === "recall" && (
+          <div className="mt-5 rounded-2xl border border-gray-800 bg-gray-950 p-4">
+            <p className="text-sm font-bold text-white">Choose the German phrase for: {item.english}</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {options.map((option) => {
+                const isSelected = selected === option;
+                const isCorrect = option === item.german;
+                return (
+                  <button
+                    key={option}
+                    onClick={() => setChoice({ active, answer: option })}
+                    className={cn(
+                      "min-h-12 rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors",
+                      isSelected && isCorrect
+                        ? "border-green-400/30 bg-green-400/10 text-green-300"
+                        : isSelected
+                        ? "border-red-400/30 bg-red-400/10 text-red-300"
+                        : "border-gray-800 bg-gray-900 text-gray-300 hover:border-gray-700"
+                    )}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {mode === "speak" && (
+          <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-400/10 p-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={startSpeaking}
+                disabled={listening || !hasSpeechRecognition}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                  listening
+                    ? "border border-red-400/30 bg-red-400/10 text-red-300"
+                    : "border border-green-400/30 bg-gray-950 text-green-300 hover:bg-green-400/10"
+                )}
+              >
+                <Mic size={16} />
+                {listening ? "Listening..." : "Speak phrase"}
+              </button>
+              {!hasSpeechRecognition && (
+                <span className="self-center text-xs font-semibold text-red-300">
+                  Speech practice works best in Chrome or Edge.
+                </span>
+              )}
+            </div>
+
+            {speakFeedback && (
+              <div
+                className={cn(
+                  "mt-3 rounded-xl border px-3 py-2 text-sm font-semibold",
+                  speakFeedback === "good"
+                    ? "border-green-400/30 bg-green-400/10 text-green-300"
+                    : speakFeedback === "close"
+                    ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+                    : speakFeedback === "error"
+                    ? "border-red-400/30 bg-red-400/10 text-red-300"
+                    : "border-orange-400/30 bg-orange-400/10 text-orange-300"
+                )}
+              >
+                {speakFeedback === "good"
+                  ? "Good speaking match."
+                  : speakFeedback === "close"
+                  ? "Close. Repeat once more with slow audio."
+                  : speakFeedback === "error"
+                  ? "Mic was blocked or no speech was captured."
+                  : "Try again slowly. Aim for the main words first."}
+                {transcript && (
+                  <span className="block pt-1 text-xs opacity-80">
+                    Heard: {transcript}
+                    {score !== null && ` - Practice match ${score}%`}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <button
+            onClick={() => go(-1)}
+            className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-2 text-sm font-bold text-gray-400 hover:border-gray-700 hover:text-white"
+          >
+            Previous
+          </button>
+          <div className="flex flex-wrap justify-center gap-1">
+            {vocab.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setActive(index);
+                  setChoice(null);
+                  resetSpeak();
+                }}
+                className={cn("h-2.5 w-2.5 rounded-full transition-all", index === active ? "bg-yellow-400 scale-125" : "bg-gray-700 hover:bg-gray-500")}
+                aria-label={`Phrase ${index + 1}`}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => go(1)}
+            className="rounded-xl border border-gray-800 bg-gray-950 px-4 py-2 text-sm font-bold text-gray-400 hover:border-gray-700 hover:text-white"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function normalizeSpeechText(value: string) {
   return value
     .toLowerCase()
